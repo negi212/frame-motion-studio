@@ -124,7 +124,8 @@ jobs:
 
       - name: Install OpenCV (chocolatey)
         run: |
-          choco install opencv -y --no-progress || echo "opencv choco install skipped"
+          choco install opencv -y --no-progress
+          if ($LASTEXITCODE -ne 0) { Write-Host "opencv choco install skipped" }
           # chocolatey opencv installs to C:\tools\opencv
           dir "C:\tools\opencv\build\x64\vc16\lib" | Select-Object -First 5
           dir "C:\tools\opencv\build\include" | Select-Object -First 5
