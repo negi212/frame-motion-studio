@@ -31,11 +31,18 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libopencv-dev clang libclang-dev pkg-config libgtk-3-dev
+          sudo apt-get install -y libopencv-dev clang libclang-dev pkg-config libgtk-3-dev llvm-dev
           # Verify opencv
           pkg-config --modversion opencv4 || echo "opencv pkg-config not found"
-          # Setup libclang symlink for our .cargo/config.toml
-          bash setup.sh || echo "setup.sh warning"
+          llvm-config --version || llvm-config-14 --version || true
+          echo "LLVM libdir: $(llvm-config --libdir 2>/dev/null || llvm-config-14 --libdir 2>/dev/null || echo 'not found')"
+          ls -lh /usr/lib/llvm-*/lib/libclang* 2>/dev/null | head -20 || true
+          ls -lh /usr/lib/x86_64-linux-gnu/libclang* 2>/dev/null | head -20 || true
+          # For CI, remove custom .cargo/config.toml to use system llvm-config
+          rm -f .cargo/config.toml
+          rm -rf .libclang
+          echo "Removed custom cargo config for CI"
+          cat .cargo/config.toml 2>/dev/null || echo "no cargo config"
 
       - name: Build release
         run: cargo build --release --verbose
@@ -103,8 +110,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install LLVM
-        run: choco install llvm -y --no-progress || echo "llvm install skipped (already installed)"
-        shell: powershell
+        run: choco install llvm -y --no-progress
+        shell: bash
+        continue-on-error: true
 
       - name: Setup libclang env
         run: |
