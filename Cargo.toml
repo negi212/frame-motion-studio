@@ -1,0 +1,48 @@
+[package]
+name = "frame_motion_studio"
+version = "0.1.0"
+edition = "2021"
+description = "FRAME MOTION STUDIO - 動画から動体の残像を1枚に合成するデスクトップアプリ"
+authors = ["Frame Motion Studio"]
+license = "MIT"
+repository = "https://github.com/negi212/frame-motion-studio"
+keywords = ["video", "opencv", "egui", "compositing", "desktop"]
+categories = ["multimedia", "gui"]
+readme = "README.md"
+default-run = "frame_motion_studio"
+
+[dependencies]
+eframe = { version = "0.33", features = ["default"] }
+egui = "0.33"
+opencv = { version = "0.97", default-features = false, features = ["video", "imgcodecs", "imgproc", "videoio", "vcpkg"] }
+rfd = "0.15"
+image = { version = "0.25", features = ["png", "jpeg"] }
+open = "5.3"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+chrono = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[package.metadata.deb]
+maintainer = "negi212 <negi212@users.noreply.github.com>"
+copyright = "2026, Frame Motion Studio"
+license-file = ["README.md", "4"]
+extended-description = "動画から動体を抽出し一定時間ごとの位置を1枚の静止画像に合成するデスクトップアプリ。"
+depends = "$auto"
+section = "graphics"
+priority = "optional"
+assets = [
+  ["target/release/frame_motion_studio", "usr/bin/frame-motion-studio", "755"],
+  ["README.md", "usr/share/doc/frame-motion-studio/README.md", "644"],
+  ["assets/BIZUDPGothic-Regular.ttf", "usr/share/frame-motion-studio/BIZUDPGothic-Regular.ttf", "644"]
+]
+
+[package.metadata.wix]
+upgrade-guid = "A1B2C3D4-E5F6-47A8-9B0C-D1E2F3A4B5C6"
+path-guid = "B2C3D4E5-F6A7-48B9-8C0D-E1F2A3B4C5D6"

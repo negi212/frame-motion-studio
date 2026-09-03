@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., v0.1.0)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopencv-dev clang libclang-dev pkg-config libgtk-3-dev
+          # Verify opencv
+          pkg-config --modversion opencv4 || echo "opencv pkg-config not found"
+          # Setup libclang symlink for our .cargo/config.toml
+          bash setup.sh || echo "setup.sh warning"
+
+      - name: Build release
+        run: cargo build --release --verbose
+
+      - name: Check binary
+        run: |
+          ls -lh target/release/frame_motion_studio
+          file target/release/frame_motion_studio
+          ldd target/release/frame_motion_studio | head -30 || true
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Build .deb
+        run: cargo deb --no-build
+        continue-on-error: true
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p dist
+          cp target/release/frame_motion_studio dist/frame_motion_studio-linux-x86_64 || cp target/release/frame-motion-studio dist/ 2>/dev/null || true
+          # Ensure executable name (cargo deb expects target/release/frame_motion_studio)
+          ls -lh dist/ target/debian/*.deb 2>/dev/null || true
+          cp target/debian/*.deb dist/ 2>/dev/null || echo "no deb built"
+          ls -lh dist/
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: |
+            dist/*
+            target/debian/*.deb
+
+      - name: Create Release (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            target/debian/*.deb
+          generate_release_notes: true
+
+      - name: Create Release (manual)
+        if: github.event_name == 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || 'manual-release' }}
+          files: |
+            dist/*
+            target/debian/*.deb
+          generate_release_notes: true
+
+  build-windows:
+    name: Build Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install LLVM
+        run: choco install llvm --version 18.1.8 -y --no-progress
+        shell: powershell
+
+      - name: Setup libclang env
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Get-ChildItem "C:\Program Files\LLVM\bin\libclang*.dll" | ForEach-Object { Write-Host $_.FullName }
+        shell: powershell
+
+      - name: Install OpenCV (chocolatey)
+        run: |
+          choco install opencv -y --no-progress
+          # chocolatey opencv installs to C:\tools\opencv
+          dir "C:\tools\opencv\build\x64\vc16\lib" | Select-Object -First 5
+          dir "C:\tools\opencv\build\include" | Select-Object -First 5
+          echo "OPENCV_LINK_PATHS=C:\tools\opencv\build\x64\vc16\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "OPENCV_LINK_LIBS=opencv_world410" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "OPENCV_INCLUDE_PATHS=C:\tools\opencv\build\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        shell: powershell
+
+      - name: Build release
+        run: cargo build --release --verbose
+        shell: bash
+        env:
+          OPENCV_MSVC_CRT: static
+
+      - name: Check binary
+        run: |
+          dir target\release\frame_motion_studio.exe
+          dir target\release\*.exe
+        shell: powershell
+
+      - name: Create portable zip
+        run: |
+          mkdir dist
+          Copy-Item target\release\frame_motion_studio.exe dist\frame_motion_studio-windows-x86_64.exe -ErrorAction SilentlyContinue
+          Copy-Item target\release\frame_motion_studio.exe dist\ -ErrorAction SilentlyContinue
+          # Also copy OpenCV DLL if needed (opencv_world410.dll)
+          if (Test-Path "C:\tools\opencv\build\x64\vc16\bin\opencv_world410.dll") {
+            Copy-Item "C:\tools\opencv\build\x64\vc16\bin\opencv_world410.dll" dist\
+          }
+          if (Test-Path "C:\tools\opencv\build\x64\vc16\bin\opencv_world410d.dll") {
+            Copy-Item "C:\tools\opencv\build\x64\vc16\bin\opencv_world410d.dll" dist\
+          }
+          Compress-Archive -Path dist\* -DestinationPath frame_motion_studio-windows-x86_64.zip -Force
+          dir dist
+          dir *.zip
+        shell: powershell
+
+      - name: Install WiX Toolset
+        run: choco install wixtoolset -y --no-progress
+        shell: powershell
+        continue-on-error: true
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix --locked
+        continue-on-error: true
+
+      - name: Build MSI installer
+        run: cargo wix --nocapture --install-cargo-wix || echo "wix build skipped"
+        shell: bash
+        continue-on-error: true
+
+      - name: List wix output
+        run: |
+          dir target\wix\*.msi -ErrorAction SilentlyContinue
+          dir target\wix -ErrorAction SilentlyContinue
+        shell: powershell
+        continue-on-error: true
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: |
+            frame_motion_studio-windows-x86_64.zip
+            dist/*
+            target/wix/*.msi
+
+      - name: Create Release (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            frame_motion_studio-windows-x86_64.zip
+            target/wix/*.msi
+          generate_release_notes: true
+
+      - name: Create Release (manual)
+        if: github.event_name == 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || 'manual-release' }}
+          files: |
+            frame_motion_studio-windows-x86_64.zip
+            target/wix/*.msi
+          generate_release_notes: true

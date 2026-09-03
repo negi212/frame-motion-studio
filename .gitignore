@@ -1,0 +1,15 @@
+/target
+/.libclang
+/dist
+/node_modules
+*.mp4
+*.avi
+*.mov
+*.mkv
+*_composite.png
+*_composite.jpg
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
