@@ -576,7 +576,7 @@ impl eframe::App for FrameMotionApp {
                         // Video selection card
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(30, 32, 44))
-                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                            .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                             .corner_radius(10)
                             .inner_margin(egui::Margin::symmetric(14, 14))
                             .show(ui, |ui| {
@@ -593,9 +593,9 @@ impl eframe::App for FrameMotionApp {
                                     egui::Color32::from_rgb(36, 38, 52)
                                 };
                                 let drop_stroke = if hovered_files {
-                                    egui::Stroke::new(1.5, egui::Color32::from_rgb(90, 120, 255))
+                                    egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(90, 120, 255))
                                 } else {
-                                    egui::Stroke::new(1.0, egui::Color32::from_rgb(65, 70, 100))
+                                    egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(65, 70, 100))
                                 };
                                 egui::Frame::new()
                                     .fill(drop_bg)
@@ -671,7 +671,7 @@ impl eframe::App for FrameMotionApp {
                         // Output card
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(30, 32, 44))
-                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                            .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                             .corner_radius(10)
                             .inner_margin(14)
                             .show(ui, |ui| {
@@ -686,7 +686,7 @@ impl eframe::App for FrameMotionApp {
                                 };
                                 egui::Frame::new()
                                     .fill(egui::Color32::from_rgb(36, 38, 52))
-                                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                                    .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                                     .corner_radius(6)
                                     .inner_margin(8)
                                     .show(ui, |ui| {
@@ -729,7 +729,7 @@ impl eframe::App for FrameMotionApp {
                         // Preset card
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(30, 32, 44))
-                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                            .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                             .corner_radius(10)
                             .inner_margin(14)
                             .show(ui, |ui| {
@@ -745,7 +745,7 @@ impl eframe::App for FrameMotionApp {
                                         };
                                         let btn = egui::Button::new(egui::RichText::new(preset.label()).size(13.0).strong().color(if is_selected { egui::Color32::WHITE } else { egui::Color32::from_rgb(200,210,235) }))
                                             .fill(btn_fill)
-                                            .stroke(egui::Stroke::new(1.0, if is_selected { egui::Color32::from_rgb(90,110,200) } else { egui::Color32::from_rgb(65,70,100) }))
+                                            .stroke(egui::Stroke::new(1.0_f32, if is_selected { egui::Color32::from_rgb(90,110,200) } else { egui::Color32::from_rgb(65,70,100) }))
                                             .corner_radius(6);
                                         if ui.add(btn).clicked() {
                                             self.preset = preset;
@@ -827,7 +827,7 @@ impl eframe::App for FrameMotionApp {
                         // Preview card
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(30, 32, 44))
-                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                            .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                             .corner_radius(10)
                             .inner_margin(14)
                             .show(ui, |ui| {
@@ -856,7 +856,7 @@ impl eframe::App for FrameMotionApp {
                                 let avail_w = ui.available_width();
                                 egui::Frame::new()
                                     .fill(egui::Color32::from_rgb(18, 20, 28))
-                                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55,60,85)))
+                                    .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55,60,85)))
                                     .corner_radius(8)
                                     .inner_margin(6)
                                     .show(ui, |ui| {
@@ -892,7 +892,7 @@ impl eframe::App for FrameMotionApp {
                                     let can_open = self.output_path.as_ref().map(|p| p.exists()).unwrap_or(false) || self.after_texture.is_some();
                                     let open_btn = egui::Button::new(egui::RichText::new("  開く  ").size(13.0))
                                         .fill(egui::Color32::from_rgb(45,48,64))
-                                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(65,70,100)))
+                                        .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(65,70,100)))
                                         .corner_radius(6);
                                     if ui.add_enabled(can_open, open_btn).clicked() {
                                         self.open_output();
@@ -906,7 +906,7 @@ impl eframe::App for FrameMotionApp {
                         // Execution card
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(30, 32, 44))
-                            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(55, 60, 85)))
+                            .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(55, 60, 85)))
                             .corner_radius(10)
                             .inner_margin(14)
                             .show(ui, |ui| {

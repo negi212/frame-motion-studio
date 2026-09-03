@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use opencv::{
-    core::{Mat, Size, Scalar, CV_8UC1},
-    imgcodecs, imgproc,
+    core::Mat,
+    imgcodecs,
     videoio::{VideoCapture, CAP_ANY, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH},
     prelude::*,
 };
@@ -91,19 +91,57 @@ pub fn extract_first_frame_mat<P: AsRef<Path>>(path: P) -> Result<Mat> {
 }
 
 /// Mat (BGR) -> egui ColorImage (RGBA)
+/// Manual conversion to avoid OpenCV version differences (cvtColor signature changed in 4.10)
 pub fn mat_to_color_image(mat: &Mat) -> Result<egui::ColorImage> {
-    // Convert BGR -> RGBA
-    let mut rgba = Mat::default();
-    imgproc::cvt_color(mat, &mut rgba, imgproc::COLOR_BGR2RGBA, 0)
-        .map_err(|e| anyhow!("cvtColor failed: {}", e))?;
-    let rows = rgba.rows() as usize;
-    let cols = rgba.cols() as usize;
-    // Ensure continuous
-    // Get bytes
-    let bytes = rgba.data_bytes().map_err(|e| anyhow!("data_bytes: {}", e))?.to_vec();
-    // bytes is RGBA order already (since we cvt to RGBA)
-    // egui expects RGBA unmultiplied
-    Ok(egui::ColorImage::from_rgba_unmultiplied([cols, rows], &bytes))
+    let rows = mat.rows() as usize;
+    let cols = mat.cols() as usize;
+    let channels = mat.channels() as usize;
+    // Ensure continuous (VideoCapture frames may be non-continuous)
+    let bgr_bytes = if mat.is_continuous() {
+        mat.data_bytes().map_err(|e| anyhow!("data_bytes: {}", e))?.to_vec()
+    } else {
+        let mut cont = Mat::default();
+        mat.copy_to(&mut cont)
+            .map_err(|e| anyhow!("copy_to continuous: {}", e))?;
+        cont.data_bytes()
+            .map_err(|e| anyhow!("data_bytes cont: {}", e))?
+            .to_vec()
+    };
+    // Expect 3 channels (BGR) or 1 channel (grayscale) – handle both
+    let mut rgba = Vec::with_capacity(rows * cols * 4);
+    if channels == 3 {
+        for chunk in bgr_bytes.chunks_exact(3) {
+            let b = chunk[0];
+            let g = chunk[1];
+            let r = chunk[2];
+            rgba.push(r);
+            rgba.push(g);
+            rgba.push(b);
+            rgba.push(255);
+        }
+    } else if channels == 4 {
+        // Already BGRA – convert to RGBA
+        for chunk in bgr_bytes.chunks_exact(4) {
+            let b = chunk[0];
+            let g = chunk[1];
+            let r = chunk[2];
+            let a = chunk[3];
+            rgba.push(r);
+            rgba.push(g);
+            rgba.push(b);
+            rgba.push(a);
+        }
+    } else if channels == 1 {
+        for &v in &bgr_bytes {
+            rgba.push(v);
+            rgba.push(v);
+            rgba.push(v);
+            rgba.push(255);
+        }
+    } else {
+        return Err(anyhow!("unsupported channels: {}", channels));
+    }
+    Ok(egui::ColorImage::from_rgba_unmultiplied([cols, rows], &rgba))
 }
 
 /// Mat -> PNG bytes (for saving preview to texture via image crate fallback)
