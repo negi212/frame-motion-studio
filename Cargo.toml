@@ -1,6 +1,6 @@
 [package]
 name = "frame_motion_studio"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2021"
 description = "FRAME MOTION STUDIO - 動画から動体の残像を1枚に合成するデスクトップアプリ"
 authors = ["Frame Motion Studio"]
