@@ -1,5 +1,5 @@
 use crate::{
-    composite::{CompositeEvent, CompositeParams, CompositeRequest, Progress},
+    composite::{CompositeEvent, CompositeParams, CompositeRequest},
     video::{default_output_path, ensure_extension, extract_first_frame_mat, get_video_info, is_supported_video_extension, mat_to_color_image, VideoInfo},
 };
 use anyhow::Result;

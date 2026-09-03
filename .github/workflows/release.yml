@@ -134,9 +134,13 @@ jobs:
           if ($null -ne $lib) {
             $basename = [System.IO.Path]::GetFileNameWithoutExtension($lib.Name)
             Write-Host "Detected $basename"
-            echo "OPENCV_LINK_LIBS=$basename" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            $ver = $basename -replace "opencv_world",""
+            # Include tracking to fix LNK2019 for TrackerStateEstimator
+            $libs = "opencv_core$ver,opencv_imgproc$ver,opencv_video$ver,opencv_videoio$ver,opencv_imgcodecs$ver,opencv_tracking$ver,$basename"
+            Write-Host "Using libs: $libs"
+            echo "OPENCV_LINK_LIBS=$libs" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } else {
-            echo "OPENCV_LINK_LIBS=opencv_world410" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            echo "OPENCV_LINK_LIBS=opencv_world410,opencv_tracking410" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           }
           echo "OPENCV_LINK_PATHS=C:\tools\opencv\build\x64\vc16\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "OPENCV_INCLUDE_PATHS=C:\tools\opencv\build\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
