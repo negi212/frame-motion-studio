@@ -124,24 +124,39 @@ jobs:
 
       - name: Install OpenCV (chocolatey)
         run: |
-          choco install opencv -y --no-progress
-          if ($LASTEXITCODE -ne 0) { Write-Host "opencv choco install skipped" }
-          # chocolatey opencv installs to C:\tools\opencv
-          dir "C:\tools\opencv\build\x64\vc16\lib" | Select-Object -First 5
-          dir "C:\tools\opencv\build\include" | Select-Object -First 5
-          # Auto-detect opencv_world lib name (e.g., opencv_world410, opencv_world455)
-          $lib = Get-ChildItem "C:\tools\opencv\build\x64\vc16\lib\opencv_world*.lib" | Select-Object -First 1
-          if ($null -ne $lib) {
-            $basename = [System.IO.Path]::GetFileNameWithoutExtension($lib.Name)
-            Write-Host "Detected $basename"
-            $ver = $basename -replace "opencv_world",""
-            # Include tracking to fix LNK2019 for TrackerStateEstimator
-            $libs = "opencv_core$ver,opencv_imgproc$ver,opencv_video$ver,opencv_videoio$ver,opencv_imgcodecs$ver,opencv_tracking$ver,$basename"
-            Write-Host "Using libs: $libs"
-            echo "OPENCV_LINK_LIBS=$libs" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          } else {
-            echo "OPENCV_LINK_LIBS=opencv_world410,opencv_tracking410" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Try to install OpenCV 4.10 to match opencv crate 0.97 (4.10). Fallback to latest if not available.
+          choco install opencv --version 4.10.0 -y --allow-downgrade --force --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "opencv 4.10 not available, trying latest"
+            choco install opencv -y --no-progress
+            if ($LASTEXITCODE -ne 0) { Write-Host "opencv choco install skipped" }
           }
+          # chocolatey opencv installs to C:\tools\opencv
+          Write-Host "=== Listing lib files ==="
+          Get-ChildItem "C:\tools\opencv\build\x64\vc16\lib\*.lib" | ForEach-Object { Write-Host $_.Name }
+          Write-Host "=== Listing include ==="
+          dir "C:\tools\opencv\build\include" | Select-Object -First 5
+          # Auto-detect available libs - prefer world, fallback to separate modules
+          $libs = @()
+          $world = Get-ChildItem "C:\tools\opencv\build\x64\vc16\lib\opencv_world*.lib" | Select-Object -First 1
+          if ($null -ne $world) {
+            $libs += $world.BaseName
+            Write-Host "Detected world: $($world.BaseName)"
+          }
+          # Check for tracking separately (needed for TrackerStateEstimator)
+          $tracking = Get-ChildItem "C:\tools\opencv\build\x64\vc16\lib\opencv_tracking*.lib" | Select-Object -First 1
+          if ($null -ne $tracking) {
+            $libs += $tracking.BaseName
+            Write-Host "Added tracking: $($tracking.BaseName)"
+          }
+          # If world not found, try separate modules
+          if ($libs.Count -eq 0) {
+            $libs = @("opencv_world410")
+            Write-Host "Fallback libs: $($libs -join ',')"
+          }
+          $libsStr = $libs -join ","
+          Write-Host "Using libs: $libsStr"
+          echo "OPENCV_LINK_LIBS=$libsStr" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "OPENCV_LINK_PATHS=C:\tools\opencv\build\x64\vc16\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "OPENCV_INCLUDE_PATHS=C:\tools\opencv\build\include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         shell: powershell
