@@ -1,6 +1,6 @@
 [package]
 name = "frame_motion_studio"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 description = "FRAME MOTION STUDIO - 動画から動体の残像を1枚に合成するデスクトップアプリ"
 authors = ["Frame Motion Studio"]
@@ -11,10 +11,14 @@ categories = ["multimedia", "gui"]
 readme = "README.md"
 default-run = "frame_motion_studio"
 
+[features]
+default = ["opencv"]
+opencv = ["dep:opencv"]
+
 [dependencies]
 eframe = { version = "0.33", features = ["default"] }
 egui = "0.33"
-opencv = { version = "0.97", default-features = false, features = ["video", "imgcodecs", "imgproc", "videoio"] }
+opencv = { version = "0.97", default-features = false, features = ["video", "imgcodecs", "imgproc", "videoio"], optional = true }
 rfd = "0.15"
 image = { version = "0.25", features = ["png", "jpeg"] }
 open = "5.3"

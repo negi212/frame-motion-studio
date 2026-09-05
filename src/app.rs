@@ -451,13 +451,16 @@ impl FrameMotionApp {
                         self.after_texture = Some(ctx.load_texture("after", color, TextureOptions::LINEAR));
                         self.preview_is_after = true;
                     } else {
-                        // fallback via opencv imread
-                        use opencv::imgcodecs;
-                        if let Ok(mat) = imgcodecs::imread(&path.to_string_lossy().to_string(), imgcodecs::IMREAD_COLOR) {
-                            if let Ok(img) = mat_to_color_image(&mat) {
-                                self.after_image = Some(img.clone());
-                                self.after_texture = Some(ctx.load_texture("after", img, TextureOptions::LINEAR));
-                                self.preview_is_after = true;
+                        // fallback via opencv imread (only if opencv feature enabled)
+                        #[cfg(feature = "opencv")]
+                        {
+                            use opencv::imgcodecs;
+                            if let Ok(mat) = imgcodecs::imread(&path.to_string_lossy().to_string(), imgcodecs::IMREAD_COLOR) {
+                                if let Ok(img) = mat_to_color_image(&mat) {
+                                    self.after_image = Some(img.clone());
+                                    self.after_texture = Some(ctx.load_texture("after", img, TextureOptions::LINEAR));
+                                    self.preview_is_after = true;
+                                }
                             }
                         }
                     }

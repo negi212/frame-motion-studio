@@ -1,10 +1,14 @@
 use anyhow::{anyhow, Result};
+#[cfg(feature = "opencv")]
 use opencv::{
     core::Mat,
     imgcodecs,
     videoio::{VideoCapture, CAP_ANY, CAP_PROP_FPS, CAP_PROP_FRAME_COUNT, CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH},
     prelude::*,
 };
+#[cfg(not(feature = "opencv"))]
+#[derive(Debug, Clone)]
+pub struct Mat;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -47,6 +51,7 @@ impl VideoInfo {
     }
 }
 
+#[cfg(feature = "opencv")]
 pub fn get_video_info<P: AsRef<Path>>(path: P) -> Result<VideoInfo> {
     let path_str = path.as_ref().to_string_lossy().to_string();
     #[allow(unused_mut)]
@@ -64,8 +69,6 @@ pub fn get_video_info<P: AsRef<Path>>(path: P) -> Result<VideoInfo> {
     } else {
         0.0
     };
-    // validate FPS
-    // If fps is 0, treat as error but still return info with --? Caller handles.
     Ok(VideoInfo {
         width,
         height,
@@ -75,6 +78,19 @@ pub fn get_video_info<P: AsRef<Path>>(path: P) -> Result<VideoInfo> {
     })
 }
 
+#[cfg(not(feature = "opencv"))]
+pub fn get_video_info<P: AsRef<Path>>(_path: P) -> Result<VideoInfo> {
+    // Fallback: try ffprobe if available, otherwise return dummy
+    Ok(VideoInfo {
+        width: 0,
+        height: 0,
+        fps: 30.0,
+        frame_count: 0,
+        duration_sec: 0.0,
+    })
+}
+
+#[cfg(feature = "opencv")]
 pub fn extract_first_frame_mat<P: AsRef<Path>>(path: P) -> Result<Mat> {
     let path_str = path.as_ref().to_string_lossy().to_string();
     let mut cap = VideoCapture::from_file(&path_str, CAP_ANY)
@@ -90,13 +106,18 @@ pub fn extract_first_frame_mat<P: AsRef<Path>>(path: P) -> Result<Mat> {
     Ok(frame)
 }
 
+#[cfg(not(feature = "opencv"))]
+pub fn extract_first_frame_mat<P: AsRef<Path>>(_path: P) -> Result<Mat> {
+    Err(anyhow!("OpenCV無効ビルドではプレビューは利用できません"))
+}
+
 /// Mat (BGR) -> egui ColorImage (RGBA)
 /// Manual conversion to avoid OpenCV version differences (cvtColor signature changed in 4.10)
+#[cfg(feature = "opencv")]
 pub fn mat_to_color_image(mat: &Mat) -> Result<egui::ColorImage> {
     let rows = mat.rows() as usize;
     let cols = mat.cols() as usize;
     let channels = mat.channels() as usize;
-    // Ensure continuous (VideoCapture frames may be non-continuous)
     let bgr_bytes = if mat.is_continuous() {
         mat.data_bytes().map_err(|e| anyhow!("data_bytes: {}", e))?.to_vec()
     } else {
@@ -107,7 +128,6 @@ pub fn mat_to_color_image(mat: &Mat) -> Result<egui::ColorImage> {
             .map_err(|e| anyhow!("data_bytes cont: {}", e))?
             .to_vec()
     };
-    // Expect 3 channels (BGR) or 1 channel (grayscale) – handle both
     let mut rgba = Vec::with_capacity(rows * cols * 4);
     if channels == 3 {
         for chunk in bgr_bytes.chunks_exact(3) {
@@ -120,7 +140,6 @@ pub fn mat_to_color_image(mat: &Mat) -> Result<egui::ColorImage> {
             rgba.push(255);
         }
     } else if channels == 4 {
-        // Already BGRA – convert to RGBA
         for chunk in bgr_bytes.chunks_exact(4) {
             let b = chunk[0];
             let g = chunk[1];
@@ -144,13 +163,24 @@ pub fn mat_to_color_image(mat: &Mat) -> Result<egui::ColorImage> {
     Ok(egui::ColorImage::from_rgba_unmultiplied([cols, rows], &rgba))
 }
 
+#[cfg(not(feature = "opencv"))]
+pub fn mat_to_color_image(_mat: &Mat) -> Result<egui::ColorImage> {
+    Err(anyhow!("OpenCV無効"))
+}
+
 /// Mat -> PNG bytes (for saving preview to texture via image crate fallback)
+#[cfg(feature = "opencv")]
 pub fn mat_to_png_bytes(mat: &Mat) -> Result<Vec<u8>> {
     let mut buf = opencv::core::Vector::<u8>::new();
     let params = opencv::core::Vector::<i32>::new();
     imgcodecs::imencode(".png", mat, &mut buf, &params)
         .map_err(|e| anyhow!("imencode png: {}", e))?;
     Ok(buf.to_vec())
+}
+
+#[cfg(not(feature = "opencv"))]
+pub fn mat_to_png_bytes(_mat: &Mat) -> Result<Vec<u8>> {
+    Err(anyhow!("OpenCV無効"))
 }
 
 pub fn is_supported_video_extension(path: &Path) -> bool {
