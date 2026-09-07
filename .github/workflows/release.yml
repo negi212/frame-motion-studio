@@ -184,8 +184,8 @@ jobs:
         shell: powershell
         continue-on-error: true
 
-      - name: Build release
-        run: cargo build --release --verbose
+      - name: Build release (Windows without OpenCV fallback)
+        run: cargo build --release --verbose --no-default-features
         shell: bash
 
       - name: Check binary
